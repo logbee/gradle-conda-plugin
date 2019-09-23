@@ -1,0 +1,9 @@
+buildscript {
+    repositories {
+        mavenLocal()
+    }
+
+    dependencies {
+        classpath 'io.logbee:gradle-conda-plugin:0.1.0'
+    }
+}

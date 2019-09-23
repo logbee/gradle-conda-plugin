@@ -1,0 +1,4 @@
+rootProject.name = "multi-project-example"
+
+include "example-lib"
+include "example-app"

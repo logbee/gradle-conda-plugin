@@ -1,0 +1,20 @@
+apply plugin: 'io.logbee.gradle.python'
+
+sourceSets {
+    main {
+        python {
+            srcDir 'src/main/python'
+        }
+    }
+    test {
+        python {
+            srcDir 'src/test/python'
+        }
+    }
+}
+
+dependencies {
+    api project(':example-lib')
+    implementation 'conda-forge:scipy:1.3.1'
+    test 'conda-forge:pytest:5.1.2'
+}

@@ -1,0 +1,86 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+    id "com.gradle.plugin-publish" version "0.10.1"
+}
+
+project.group = 'io.logbee'
+project.version = '0.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile('org.spockframework:spock-core:1.3-groovy-2.5') {
+        exclude group: 'org.codehaus.groovy'
+    }
+}
+
+sourceSets {
+    integrationTest {
+        groovy {
+            srcDir file('src/integration/groovy')
+        }
+        resources {
+            srcDir file('src/integration/resources')
+        }
+        compileClasspath += sourceSets.main.output + configurations.testRuntime
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+gradlePlugin {
+    //noinspection GroovyAssignabilityCheck
+    plugins {
+        condaPlugin {
+            id = 'io.logbee.gradle.conda'
+            implementationClass = 'io.logbee.gradle.conda.plugin.CondaPlugin'
+        }
+        pythonPlugin {
+            id = 'io.logbee.gradle.python'
+            implementationClass = 'io.logbee.gradle.conda.plugin.PythonPlugin'
+        }
+    }
+}
+
+pluginBundle {
+    website = 'https://github.com/logbee/gradle-conda-plugin'
+    vcsUrl = 'https://github.com/logbee/gradle-conda-plugin'
+    description = 'Building Python with Gradle'
+    tags = ['python']
+
+    //noinspection GroovyAssignabilityCheck
+    plugins {
+        condaPlugin {
+            id = 'io.logbee.gradle.conda'
+            displayName = 'Conda Base Plugin'
+        }
+        pythonPlugin {
+            id = 'io.logbee.gradle.python'
+            displayName = 'Build and Test Python'
+        }
+    }
+}
+
+publishing {
+    publications {
+        pluginPublication (MavenPublication) {
+            from components.java
+            groupId project.group
+            artifactId project.name
+            version project.version
+        }
+    }
+}
+
+task integrationTest(type: Test) {
+    description = 'Runs the integration tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    mustRunAfter test
+}
+
+check.dependsOn integrationTest

@@ -1,0 +1,18 @@
+apply plugin: 'io.logbee.gradle.python'
+
+sourceSets {
+    main {
+        python {
+            srcDir 'src/main/python'
+        }
+    }
+    test {
+        python {
+            srcDir 'src/test/python'
+        }
+    }
+}
+
+dependencies {
+
+}
