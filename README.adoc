@@ -1,4 +1,6 @@
-== Gradle Conda Plug-in ==
+:version: 0.2.0
+
+= Gradle Conda Plug-in =
 
 ++++
 <a href="https://github.com/logbee/gradle-conda-plugin/actions">
@@ -11,3 +13,167 @@
 
 '''
 
+== Overview ==
+
+[%header,cols=2*]
+|===
+|Plug-In
+|Usage
+
+|io.logbee.gradle.conda
+|Setup a conda environment.
+
+|io.logbee.gradle.python
+|Build, test and assemble python projects.
+|===
+
+== Getting Started ==
+
+This section is a quick start guide to show you how to use the `io.logbee.gradle.python` plugin to build and test a simple
+python project. You can find more examples in the `examples` directory.
+
+=== Layout ===
+Given the following example project:
+
+```
+example
+├── build.gradle
+├── src
+│   └── example.py
+└── test
+    └── test_example.py
+```
+
+[NOTE]
+====
+.Project Layout
+
+The layout of the project can be changed according to your preferences, see <<project-layout>>.
+====
+
+=== Configuration ===
+
+Create a `build.gradle` script as shown below:
+
+.build.gradle
+[source,groovy,subs="attributes"]
+```
+plugins {
+  id "io.logbee.gradle.python" version "{version}" <1>
+}
+
+dependencies { <2>
+    api 'anaconda:protobuf:3.8.0' <3>
+    test 'conda-forge:pytest:5.1.2' <4>
+}
+```
+
+The script does the following things:
+
+. It applies the `io.logbee.gradle.python` plugin to the project. This will in turn also apply the `io.logbee.gradle.conda` plugin.
+. It declares a couple of dependencies.
+. It adds `protobuf` in version `3.8.0` to the `api`-configuration using conda's `anaconda` channel.
+. It adds `pytest` in version `5.1.2` to the `test`-configuration using conda's `conda-forge` channel.
+
+[NOTE]
+====
+.Conda Channels
+
+Conda packages are downloaded from remote channels, which are URLs to directories containing conda packages. Read more about channels https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/channels.html[here].
+====
+
+
+
+=== Usage ===
+
+Now you can invoke gradle in the root of the project. Most of the things are done during the https://docs.gradle.org/current/userguide/build_lifecycle.html[evaluation of the project].
+Therefore it doesn't matter which task you run. A simple `$ gradle` call will also work.
+
+The conda plugin is gonging to do the following things:
+
+. It downloads a suitable https://docs.conda.io/en/latest/miniconda.html[Miniconda] distribution into the gradle cache.
+. It installs Miniconda into your gradle-home.
+. It setups a conda environment in the project's `.gradle` directory.
+. It installs the dependencies declared in the `build.gradle` into the project's conda environment.
+
+==== Testing ====
+
+To run the tests simply call: `$ gradle test`
+
+[IMPORTANT]
+====
+.PyTestTask
+
+The PyTestTask uses https://docs.pytest.org/[pytest] to run the tests. PyTest is not automatically installed. It
+has to be added as dependency to the project. This may change in later versions.
+====
+
+[[project-layout]]
+== Project Layout ==
+
+By using https://docs.gradle.org/current/dsl/org.gradle.api.tasks.SourceSet.html[SourceSets], the project's directory structure (layout) can be adjusted to your needs/preferences.
+
+The `io.logbee.gradle.python` plugin uses a `main` and a `test` source-set to manage the sources. The location of the sources
+can be specified by passing a path to the directory.
+
+=== Default Layout ===
+
+.Layout
+```
+.
+├── build.gradle
+├── src
+│   └── example.py
+└── test
+    └── test_example.py
+```
+
+.build.gradle
+```
+sourceSets {
+    main {
+        python {
+            srcDir 'src'
+        }
+    }
+    test {
+        python {
+            srcDir 'test'
+        }
+    }
+}
+```
+
+=== Maven Layout ===
+
+.Layout
+```
+.
+├── build.gradle
+└── src
+    ├── main
+    │   └── python
+    │       └── example.py
+    └── test
+        └── python
+            └── test_example.py
+```
+
+.build.gradle
+```
+sourceSets {
+    main {
+        python {
+            srcDir 'src/main/python'
+        }
+    }
+    test {
+        python {
+            srcDir 'src/test/python'
+        }
+    }
+}
+```
+
+== Contributions ==
+All contributions are welcome: ideas, patches, documentation, bug reports, complaints.

@@ -1,0 +1,8 @@
+plugins {
+    id "io.logbee.gradle.python" version "0.2.0"
+}
+
+dependencies {
+    api 'anaconda:protobuf:3.8.0'
+    test 'conda-forge:pytest:5.1.2'
+}

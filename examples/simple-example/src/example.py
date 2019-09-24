@@ -1,5 +1,4 @@
 
-
 class Greeter:
 
     def __init__(self, message):
@@ -7,7 +6,6 @@ class Greeter:
 
     def greet(self, name):
         return self.message + " " + name
-
 
 def main():
     greeter = Greeter("Good afternoon")
