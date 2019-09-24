@@ -6,9 +6,9 @@ import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
 
-class PythonPluginPyTestSpec extends ExampleProjectFixture {
+class PyTestTaskSpec extends ExampleProjectFixture {
 
-    @Rule final TemporaryFolder testProjectDir = new TemporaryFolder(new File("/home/elschug/Projects/gradle-conda-plugin/tmp")) {
+    @Rule final TemporaryFolder testProjectDir = new TemporaryFolder(File.createTempDir("gradle-conda-plugin-PyTestTaskSpec-", "")) {
         @Override
         protected void after() {
             super.after() // Comment this line to keep the tmp folder.
@@ -33,10 +33,6 @@ class PythonPluginPyTestSpec extends ExampleProjectFixture {
             |}
             |
             |version = "0.1.0"
-            |
-            |dependencies {
-            |  api 'conda-forge:protobuf:3.8.0'
-            |}
             |""".stripMargin()
 
         appProjectBuildFile << """
@@ -61,36 +57,22 @@ class PythonPluginPyTestSpec extends ExampleProjectFixture {
             | 
             |dependencies {
             |  api project(':example-lib')
-            |  //implementation 'conda-forge:scipy:1.3.1'
             |  test 'conda-forge:pytest:5.1.2'
             |}
             |""".stripMargin()
 
         when:
-        def bootstrap = GradleRunner.create()
+        def pytest = GradleRunner.create()
                 .withProjectDir(testProjectDir.root)
                 .withPluginClasspath()
                 .withDebug(true)
-                .withArguments('test', '--info', '--stacktrace')
+                .withArguments('example-app:test', '--info', '--stacktrace')
                 .build()
 
         then:
-        println(bootstrap.output)
-        bootstrap.output.contains('BUILD SUCCESSFUL')
-
-//        bootstrap.task(":bootstrapMiniconda").outcome == SUCCESS
-
-//        when:
-//        def createCondaEnvironment = GradleRunner.create()
-//                .withProjectDir(testProjectDir.root)
-//                .withPluginClasspath()
-//                .withDebug(true)
-//                .withArguments('createCondaEnvironment', '--info', '--stacktrace')
-//                .build()
-
-//        then:
-//        println(createCondaEnvironment.output)
-//        createCondaEnvironment.output.contains('BUILD SUCCESSFUL')
-//        createCondaEnvironment.task(":createCondaEnvironment").outcome == SUCCESS
+        println(pytest.output)
+        pytest.output.contains("test session starts")
+        pytest.output.contains("1 passed")
+        pytest.output.contains('BUILD SUCCESSFUL')
     }
 }
