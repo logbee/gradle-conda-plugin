@@ -9,6 +9,9 @@
 <a href="http://www.apache.org/licenses/LICENSE-2.0.txt">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="Apache 2.0 License">
 </a>
+<a href="https://github.com/logbee/gradle-conda-plugin/releases">
+    <img src="https://img.shields.io/badge/Version-0.2.0-green" alt="Version 0.2.0">
+</a>
 ++++
 
 '''
