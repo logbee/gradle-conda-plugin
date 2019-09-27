@@ -4,6 +4,7 @@ import io.logbee.gradle.conda.conda.CondaPluginExtension;
 import io.logbee.gradle.conda.plugin.PythonPlugin;
 import io.logbee.gradle.conda.python.PythonPluginExtension;
 import io.logbee.gradle.conda.python.PythonSourceSet;
+import kotlin.reflect.jvm.internal.impl.protobuf.GeneratedMessageLite;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.*;
@@ -12,11 +13,15 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.process.ExecResult;
 import org.gradle.process.internal.ExecAction;
 import org.gradle.process.internal.ExecActionFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.io.File;
 
 public class InstallDependenciesAction implements Action<ResolvableDependencies> {
+
+    private final Logger log = LoggerFactory.getLogger(InstallDependenciesAction.class);
 
     private final Project project;
     private final CondaPluginExtension condaExtension;
@@ -37,9 +42,13 @@ public class InstallDependenciesAction implements Action<ResolvableDependencies>
         final DependencySet dependencies = resolvableDependencies.getDependencies();
         for (Dependency dependency : dependencies) {
             if (dependency instanceof ExternalModuleDependency) {
+                final ExternalModuleDependency externalModuleDependency = (ExternalModuleDependency) dependency;
+                log.info("Installing dependency '{}'.", externalModuleDependency);
                 installExternalDependency((ExternalModuleDependency) dependency);
             }
             else if (dependency instanceof ProjectDependency) {
+                final Project dependencyProject = ((ProjectDependency) dependency).getDependencyProject();
+                log.info("Installing dependency {}.", dependencyProject);
                 installProjectDependency((ProjectDependency) dependency);
             }
             else throw new IllegalArgumentException("Can not install dependency: '" + dependency.getGroup() + ":" + dependency.getName() + ":" + dependency.getVersion() + "'");
@@ -48,9 +57,10 @@ public class InstallDependenciesAction implements Action<ResolvableDependencies>
 
     private void installExternalDependency(ExternalModuleDependency dependency) {
 
-        final ExecAction execAction = execActionFactory.newExecAction();
+        final ExecAction execAction;
         final ExecResult result;
 
+        execAction = execActionFactory.newExecAction();
         execAction.executable(condaExtension.getMiniconda().getCondaExecutable());
         execAction.args("install", "--yes");
         execAction.args("--prefix", condaExtension.getEnvironmentDir());
@@ -69,7 +79,7 @@ public class InstallDependenciesAction implements Action<ResolvableDependencies>
 
         dependencyProject.afterEvaluate(project -> {
 
-            if (dependencyProject.getPlugins().hasPlugin(PythonPlugin.class)) {
+            if (project.getPlugins().hasPlugin(PythonPlugin.class)) {
 
                 final PythonPluginExtension pythonPluginExtension = project.getExtensions().getByType(PythonPluginExtension.class);
                 final Configuration apiConfiguration = project.getConfigurations().getByName(PythonPlugin.API_CONFIGURATION_NAME);
@@ -80,22 +90,32 @@ public class InstallDependenciesAction implements Action<ResolvableDependencies>
                 final PythonSourceSet mainSourceSet = pythonPluginExtension.getSourceSets().getByName(PythonPlugin.MAIN_SOURCE_SET_NAME);
                 final FileCollection sources = mainSourceSet.getSources();
 
-                sources.getFiles().forEach(file -> {
+                if (!sources.getFiles().isEmpty()) {
 
-                    final ExecAction execAction = execActionFactory.newExecAction();
-                    final ExecResult result;
+                    sources.getFiles().forEach(file -> {
 
-                    execAction.executable(condaExtension.getMiniconda().getCondaExecutable());
-                    execAction.args("develop");
-                    execAction.args("--prefix", condaExtension.getEnvironmentDir());
-                    execAction.args(file);
+                        final ExecAction execAction;
+                        final ExecResult result;
 
-                    result = execAction.execute();
+                        execAction = execActionFactory.newExecAction();
+                        execAction.executable(condaExtension.getMiniconda().getCondaExecutable());
+                        execAction.args("develop");
+                        execAction.args("--prefix", condaExtension.getEnvironmentDir());
+                        execAction.args(file);
 
-                    if (result.getExitValue() != 0) {
-                        throw new InstallDependencyException("Failed to install dependency: " + dependency);
-                    }
-                });
+                        result = execAction.execute();
+
+                        if (result.getExitValue() != 0) {
+                            throw new InstallDependencyException("Failed to install dependency: " + dependency);
+                        }
+                    });
+                }
+                else {
+                    log.warn("SourceSet '{}' of {} is empty.", mainSourceSet, dependencyProject);
+                }
+            }
+            else {
+                log.warn("Cannot install dependency '{}' because the project does not have the plugin '{}' applied.", dependencyProject, PythonPlugin.class.getSimpleName());
             }
         });
     }
