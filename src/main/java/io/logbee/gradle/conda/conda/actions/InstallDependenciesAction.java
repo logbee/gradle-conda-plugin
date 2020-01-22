@@ -3,13 +3,12 @@ package io.logbee.gradle.conda.conda.actions;
 import io.logbee.gradle.conda.conda.CondaPluginExtension;
 import io.logbee.gradle.conda.plugin.PythonPlugin;
 import io.logbee.gradle.conda.python.PythonPluginExtension;
-import io.logbee.gradle.conda.python.PythonSourceSet;
-import kotlin.reflect.jvm.internal.impl.protobuf.GeneratedMessageLite;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.*;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.process.ExecResult;
 import org.gradle.process.internal.ExecAction;
 import org.gradle.process.internal.ExecActionFactory;
@@ -17,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.io.File;
 
 public class InstallDependenciesAction implements Action<ResolvableDependencies> {
 
@@ -87,8 +85,8 @@ public class InstallDependenciesAction implements Action<ResolvableDependencies>
 
                 execute(apiConfiguration.getIncoming());
 
-                final PythonSourceSet mainSourceSet = pythonPluginExtension.getSourceSets().getByName(PythonPlugin.MAIN_SOURCE_SET_NAME);
-                final FileCollection sources = mainSourceSet.getSources();
+                final SourceSet mainSourceSet = pythonPluginExtension.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+                final SourceDirectorySet sources = (SourceDirectorySet) mainSourceSet.getExtensions().findByName("python");
 
                 if (!sources.getFiles().isEmpty()) {
 

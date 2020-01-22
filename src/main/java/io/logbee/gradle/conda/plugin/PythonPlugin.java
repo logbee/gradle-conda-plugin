@@ -2,8 +2,6 @@ package io.logbee.gradle.conda.plugin;
 
 import io.logbee.gradle.conda.conda.actions.InstallDependenciesAction;
 import io.logbee.gradle.conda.python.PythonPluginExtension;
-import io.logbee.gradle.conda.python.PythonSourceSet;
-import io.logbee.gradle.conda.python.PythonSourceSetContainer;
 import io.logbee.gradle.conda.python.internal.DefaultPythonPluginExtension;
 import io.logbee.gradle.conda.python.test.PyTestTask;
 import org.gradle.api.Action;
@@ -13,11 +11,13 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.internal.project.ProjectInternal;
+import org.gradle.api.internal.tasks.DefaultSourceSetContainer;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.tasks.Delete;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 
 import javax.inject.Inject;
-
-import static java.util.Collections.singleton;
 
 public class PythonPlugin implements Plugin<ProjectInternal> {
 
@@ -25,9 +25,6 @@ public class PythonPlugin implements Plugin<ProjectInternal> {
     public static final String API_CONFIGURATION_NAME = "api";
     public static final String IMPLEMENTATION_CONFIGURATION_NAME = "implementation";
     public static final String TEST_CONFIGURATION_NAME = "test";
-
-    public static String MAIN_SOURCE_SET_NAME = "main";
-    public static String TEST_SOURCE_SET_NAME = "test";
 
     private final ObjectFactory objectFactory;
 
@@ -41,9 +38,9 @@ public class PythonPlugin implements Plugin<ProjectInternal> {
         project.getPlugins().apply(CondaPlugin.class);
 
         addExtensions(project);
-        createConfigurations(project);
         configureSourceSets(project);
-        createTasks(project);
+        createConfigurations(project);
+        registerTasks(project);
 
         project.afterEvaluate(new Action<Project>() {
             @Override
@@ -56,32 +53,34 @@ public class PythonPlugin implements Plugin<ProjectInternal> {
         });
     }
 
-    private void createTasks(ProjectInternal project) {
-        PyTestTask.create(project);
-    }
-
     private void addExtensions(final ProjectInternal project) {
         final PythonPluginExtension extension = project.getExtensions().create(PythonPluginExtension.class, "python", DefaultPythonPluginExtension.class, project, objectFactory);
-        project.getExtensions().add(PythonSourceSetContainer.class, "sourceSets", extension.getSourceSets());
     }
 
     private void configureSourceSets(Project project) {
-        final PythonPluginExtension extension = project.getExtensions().getByType(PythonPluginExtension.class);
-        final PythonSourceSet main = extension.getSourceSets().create(MAIN_SOURCE_SET_NAME);
-        final PythonSourceSet test = extension.getSourceSets().create(TEST_SOURCE_SET_NAME);
+        SourceSetContainer sourceSets = project.getExtensions().findByType(SourceSetContainer.class);
 
-        project.afterEvaluate(new Action<Project>() {
-            @Override
-            public void execute(Project project) {
-                addDefaultIfEmpty(main.getPython(), "src");
-                main.getResources().setSrcDirs(main.getPython().getSrcDirs());
-                addDefaultIfEmpty(test.getPython(), "test");
-                test.getResources().setSrcDirs(test.getPython().getSrcDirs());
-            }
+        if (sourceSets == null) {
+            sourceSets = project.getExtensions().create("sourceSets", DefaultSourceSetContainer.class);
+        }
 
-            private void addDefaultIfEmpty(SourceDirectorySet sourceDirectorySet, String path) {
-                if (sourceDirectorySet.isEmpty()) sourceDirectorySet.setSrcDirs(singleton(path));
-            }
+        if (sourceSets.findByName(SourceSet.MAIN_SOURCE_SET_NAME) == null) {
+            sourceSets.create(SourceSet.MAIN_SOURCE_SET_NAME);
+        }
+
+        if (sourceSets.findByName(SourceSet.TEST_SOURCE_SET_NAME) == null) {
+            sourceSets.create(SourceSet.TEST_SOURCE_SET_NAME);
+        }
+
+        sourceSets.all(sourceSet -> {
+            final SourceDirectorySet sources = objectFactory.sourceDirectorySet(sourceSet.getName(), String.format("%s Python source", sourceSet.getName()));
+            sources.srcDir("src/" + sourceSet.getName() + "/python");
+            sources.getFilter().include("**/*.py");
+            sourceSet.getExtensions().add("python", sources);
+            final SourceDirectorySet resources = objectFactory.sourceDirectorySet(sourceSet.getName(), String.format("%s Python resources", sourceSet.getName()));
+            resources.srcDir("src/" + sourceSet.getName() + "/resources");
+            resources.getFilter().include("**/*.*");
+            sourceSet.getExtensions().add("resources", sources);
         });
     }
 
@@ -108,5 +107,20 @@ public class PythonPlugin implements Plugin<ProjectInternal> {
         testConfiguration.setCanBeResolved(false);
         testConfiguration.extendsFrom(apiConfiguration, implementationConfiguration);
         testConfiguration.getIncoming().beforeResolve(installAction);
+    }
+
+    private void registerTasks(ProjectInternal project) {
+        PyTestTask.register(project);
+        registerCleanTask(project);
+    }
+
+    private void registerCleanTask(Project project) {
+        if (project.getTasks().findByName("clean") == null) {
+            project.getTasks().register("clean", Delete.class, task -> {
+                task.setGroup("Build");
+                task.setDescription("Deletes the build directory.");
+                task.delete(project.getBuildDir());
+            });
+        }
     }
 }

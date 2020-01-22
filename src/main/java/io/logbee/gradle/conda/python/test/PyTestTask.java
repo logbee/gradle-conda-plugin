@@ -1,12 +1,10 @@
 package io.logbee.gradle.conda.python.test;
 
 import io.logbee.gradle.conda.conda.CondaPluginExtension;
-import io.logbee.gradle.conda.plugin.PythonPlugin;
 import io.logbee.gradle.conda.python.PythonPluginExtension;
-import io.logbee.gradle.conda.python.PythonSourceSet;
 import org.gradle.api.DefaultTask;
-import org.gradle.api.Project;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.tasks.*;
 import org.gradle.process.ExecResult;
@@ -20,20 +18,23 @@ import java.io.FileWriter;
 
 public class PyTestTask extends DefaultTask {
 
-    public static PyTestTask create(ProjectInternal project) {
+    public static TaskProvider<PyTestTask> register(ProjectInternal project) {
         final CondaPluginExtension condaExtension = project.getExtensions().getByType(CondaPluginExtension.class);
         final PythonPluginExtension pythonPluginExtension = project.getExtensions().getByType(PythonPluginExtension.class);
-        final PythonSourceSet mainSourceSet = pythonPluginExtension.getSourceSets().getByName(PythonPlugin.MAIN_SOURCE_SET_NAME);
-        final PythonSourceSet testSourceSet = pythonPluginExtension.getSourceSets().getByName(PythonPlugin.TEST_SOURCE_SET_NAME);
-        final File pyTestExecutable = new File(condaExtension.getEnvironmentDir(), "bin/pytest");
-        final File outputDir = new File(project.getBuildDir(), "test");
 
-        return project.getTasks().create("test", PyTestTask.class, task -> {
-            task.setGroup("verification");
-            task.setDescription("Run tests.");
+        return project.getTasks().register("test", PyTestTask.class, task -> {
+
+            final File pyTestExecutable = new File(condaExtension.getEnvironmentDir(), "bin/pytest");
+            final SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
+            final SourceSet mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+            final SourceSet testSourceSet = sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME);
+            final File outputDir = new File(project.getBuildDir(), "test");
+
+            task.setGroup("Verification");
+            task.setDescription("Runs the unit tests.");
             task.setPyTestExecutable(pyTestExecutable);
-            task.setMainSources(mainSourceSet.getSources());
-            task.setTestSources(testSourceSet.getSources());
+            task.getMainSources().from(mainSourceSet.getExtensions().getByName("python"));
+            task.getTestSources().from(testSourceSet.getExtensions().getByName("python"));
             task.setOutputDir(outputDir);
             task.setReportFile(new File(outputDir, "junit-report.xml"));
             task.setIniFile(new File(outputDir, "pytest.ini"));
@@ -44,8 +45,8 @@ public class PyTestTask extends DefaultTask {
 
     private File pyTestExecutable;
 
-    private FileCollection mainSources;
-    private FileCollection testSources;
+    private final ConfigurableFileCollection mainSources;
+    private final ConfigurableFileCollection testSources;
     private File outputDir;
     private File iniFile;
     private File reportFile;
@@ -55,6 +56,8 @@ public class PyTestTask extends DefaultTask {
     @Inject
     public PyTestTask(ExecActionFactory execActionFactory) {
         this.execActionFactory = execActionFactory;
+        this.mainSources = getProject().files();
+        this.testSources = getProject().files();
     }
 
     @TaskAction
@@ -82,11 +85,13 @@ public class PyTestTask extends DefaultTask {
 
         execAction.executable(getPyTestExecutable());
 
-        final StringBuilder pythonPath = new StringBuilder();
-        for (File file : getMainSources().getFiles()) {
-            pythonPath.append(file.getPath()).append(":");
+        if (!getMainSources().isEmpty()) {
+            final StringBuilder pythonPath = new StringBuilder();
+            for (File file : getMainSources().getFiles()) {
+                pythonPath.append(file.getPath()).append(":");
+            }
+            execAction.environment("PYTHONPATH", pythonPath);
         }
-        execAction.environment("PYTHONPATH", pythonPath);
 
         execAction.args("--rootdir", getOutputDir());
         execAction.args("-c", getIniFile());
@@ -118,21 +123,14 @@ public class PyTestTask extends DefaultTask {
     }
 
     @InputFiles
-    public FileCollection getMainSources() {
+    public ConfigurableFileCollection getMainSources() {
         return mainSources;
     }
 
-    public void setMainSources(FileCollection mainSources) {
-        this.mainSources = mainSources;
-    }
-
     @InputFiles
-    public FileCollection getTestSources() {
+    @SkipWhenEmpty
+    public ConfigurableFileCollection getTestSources() {
         return testSources;
-    }
-
-    public void setTestSources(FileCollection testSources) {
-        this.testSources = testSources;
     }
 
     @OutputDirectory

@@ -11,7 +11,7 @@ class PyTestTaskSpec extends ExampleProjectFixture {
     @Rule final TemporaryFolder testProjectDir = new TemporaryFolder(File.createTempDir("gradle-conda-plugin-PyTestTaskSpec-", "")) {
         @Override
         protected void after() {
-            super.after() // Comment this line to keep the tmp folder.
+//            super.after() // Comment this line to keep the tmp folder.
         }
     }
 
@@ -45,12 +45,12 @@ class PyTestTaskSpec extends ExampleProjectFixture {
             |sourceSets {
             |  main {
             |    python {
-            |      include 'src'
+            |      srcDir 'src'
             |    }
             |  }
             |  test {
             |    python {
-            |      include 'test'
+            |      srcDir 'test'
             |    }
             |  }
             |}
